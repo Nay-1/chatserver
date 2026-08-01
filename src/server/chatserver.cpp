@@ -1,6 +1,7 @@
 #include "chatserver.hpp"
 #include "json.hpp"
 #include "chatservice.hpp"
+#include <muduo/base/Logging.h>
 
 #include <iostream>
 #include <functional>
@@ -53,7 +54,18 @@ void ChatServer::onMessage(const TcpConnectionPtr &conn,
     cout << buf << endl;
 
     // 数据的反序列化
-    json js = json::parse(buf);
+    json js;
+    try
+    {
+        js = json::parse(buf);
+    }
+    catch (const json::parse_error &e)
+    {
+        // 收到非法数据（空连接、非JSON等），记录日志并断开连接，防止解析异常导致工作线程崩溃
+        LOG_ERROR << "json parse error: " << e.what() << ", close connection";
+        conn->shutdown();
+        return;
+    }
     // 达到的目的：完全解耦网络模块的代码和业务模块的代码
     // 通过js["msgid"] 获取=》业务handler=》conn  js  time
     auto msgHandler = ChatService::instance()->getHandler(js["msgid"].get<int>());

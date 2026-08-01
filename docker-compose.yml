@@ -1,0 +1,56 @@
+services:
+  # MySQL 数据库容器：存储用户、好友、群组、离线消息等数据
+  mysql:
+    image: mysql:8.0
+    container_name: chat-mysql
+    restart: unless-stopped
+    environment:
+      # root 密码与 db.cpp 中硬编码的 123456 保持一致
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "chat"
+    ports:
+      # 映射到宿主 3306，宿主机 ChatServer 通过 127.0.0.1 直连
+      - "3306:3306"
+    volumes:
+      # 首次启动自动导入建库脚本
+      - ./chat.sql:/docker-entrypoint-initdb.d/chat.sql:ro
+      # 数据持久化到命名卷
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      # 供依赖方等待 mysql 就绪
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p123456"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Redis 容器：跨 ChatServer 的 pub/sub 消息转发通道
+  redis:
+    image: redis:7
+    container_name: chat-redis
+    restart: unless-stopped
+    ports:
+      # 映射到宿主 6379，宿主机 ChatServer 通过 127.0.0.1 直连
+      - "6379:6379"
+
+  # nginx 容器：TCP 负载均衡，把客户端连接分发到宿主机上的多个 ChatServer
+  nginx:
+    image: nginx:alpine
+    container_name: chat-nginx
+    restart: unless-stopped
+    ports:
+      # 对外暴露负载均衡入口 8000
+      - "8000:8000"
+    volumes:
+      # 挂载自定义 stream 配置（覆盖镜像默认 http 配置）
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      # 让容器内 host.docker.internal 解析到宿主机 IP，nginx 才能转发到宿主机上的 ChatServer
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      # 等 mysql 就绪再起 nginx（nginx 本身不依赖，仅为保证数据层先就绪）
+      mysql:
+        condition: service_healthy
+
+volumes:
+  # MySQL 数据持久化卷
+  mysql-data:
