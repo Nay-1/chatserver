@@ -1,5 +1,7 @@
 #include "redis.hpp"
+#include "config.hpp"
 #include <iostream>
+#include <stdlib.h>
 using namespace std;
 
 Redis::Redis()
@@ -22,8 +24,12 @@ Redis::~Redis()
 
 bool Redis::connect()
 {
+    // Redis 连接配置，从 conf/chat.conf 的 [redis] 段读取，缺省与本机部署一致
+    string host = getConfigValue("redis", "host", "127.0.0.1");
+    int port = atoi(getConfigValue("redis", "port", "6379").c_str());
+
     // 负责publish发布消息的上下文连接
-    _publish_context = redisConnect("127.0.0.1", 6379);
+    _publish_context = redisConnect(host.c_str(), port);
     if (nullptr == _publish_context)
     {
         cerr << "connect redis failed!" << endl;
@@ -31,7 +37,7 @@ bool Redis::connect()
     }
 
     // 负责subscribe订阅消息的上下文连接
-    _subcribe_context = redisConnect("127.0.0.1", 6379);
+    _subcribe_context = redisConnect(host.c_str(), port);
     if (nullptr == _subcribe_context)
     {
         cerr << "connect redis failed!" << endl;

@@ -16,8 +16,8 @@ C++11（muduo）集群聊天服务器：nginx TCP 负载均衡 + 多 ChatServer 
 
 - 基础设施容器化：`docker compose up -d` 起 mysql:8.0（3306，自动导入 `chat.sql`）、redis:7（6379）、nginx:alpine（8000，TCP 轮询转发宿主机 6000/6001）。
 - nginx 配置在 `nginx/nginx.conf`（stream 块，upstream 用 `host.docker.internal` 访问宿主机，依赖 compose 的 `extra_hosts: host-gateway`）。
-- MySQL：库名 `chat`，连接参数**硬编码**在 `src/server/db/db.cpp`（127.0.0.1 / root / 123456，与 compose 环境变量一致），连接后 `set names gbk`（中文编码走 gbk）。
-- Redis：默认 127.0.0.1:6379，硬编码在 `src/server/redis/redis.cpp`。`ChatService` 构造时连接，失败仅跳过回调注册，不致命；订阅线程独立阻塞接收。
+- MySQL：库名 `chat`，连接参数从 `conf/chat.conf` 的 `[mysql]` 段读取（host/port/user/password/dbname，配置缺失时缺省 127.0.0.1 / 3306 / root / 123456 / chat，与 compose 环境变量一致），连接后 `set names gbk`（中文编码走 gbk）。配置读取模块在 `src/server/config.cpp`（INI 风格解析，分号注释）。
+- Redis：从 `conf/chat.conf` 的 `[redis]` 段读取 host/port（缺省 127.0.0.1 / 6379）。`ChatService` 构造时连接，失败仅跳过回调注册，不致命；订阅线程独立阻塞接收。
 - 启动：`./bin/ChatServer 0.0.0.0 6000`（实例1）、`./bin/ChatServer 0.0.0.0 6001`（实例2）；客户端：`./bin/ChatClient 127.0.0.1 8000`，终端菜单式，main 线程发、子线程收。
 - 改了源码后：先 `./autobuild.sh` 重新编译，再重启 ChatServer 进程，无需动容器。
 

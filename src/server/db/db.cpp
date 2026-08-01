@@ -1,11 +1,14 @@
 #include "db.h"
+#include "config.hpp"
 #include <muduo/base/Logging.h>
+#include <stdlib.h>
 
-// 数据库配置信息
-static string server = "127.0.0.1";
-static string user = "root";
-static string password = "123456";
-static string dbname = "chat";
+// 数据库配置信息，从 conf/chat.conf 的 [mysql] 段读取，缺省与本机部署一致
+static string server = getConfigValue("mysql", "host", "127.0.0.1");
+static string user = getConfigValue("mysql", "user", "root");
+static string password = getConfigValue("mysql", "password", "123456");
+static string dbname = getConfigValue("mysql", "dbname", "chat");
+static unsigned int port = atoi(getConfigValue("mysql", "port", "3306").c_str());
 
 // 初始化数据库连接
 MySQL::MySQL()
@@ -24,7 +27,7 @@ MySQL::~MySQL()
 bool MySQL::connect()
 {
     MYSQL *p = mysql_real_connect(_conn, server.c_str(), user.c_str(),
-                                  password.c_str(), dbname.c_str(), 3306, nullptr, 0);
+                                  password.c_str(), dbname.c_str(), port, nullptr, 0);
     if (p != nullptr)
     {
         // C和C++代码默认的编码字符是ASCII，如果不设置，从MySQL上拉下来的中文显示？

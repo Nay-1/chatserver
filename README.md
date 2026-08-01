@@ -42,5 +42,5 @@ docker compose up -d
 ## 注意事项
 
 - 改了 C++ 源码后：先 `./autobuild.sh` 重新编译，再重启 ChatServer 进程，无需动容器
-- 连接地址无需改动：db.cpp/redis.cpp 硬编码 127.0.0.1，恰好连通映射到宿主的容器端口
+- MySQL/Redis 连接参数在 `conf/chat.conf` 配置（缺省 127.0.0.1，恰好连通映射到宿主的容器端口），修改后需重启 ChatServer；注意 ChatServer 须在项目根目录下启动（配置为相对路径 `conf/chat.conf`）
 - `docker compose stop` 停容器不影响 ChatServer 进程；ChatServer 用 Ctrl+C（SIGINT）停止会重置用户 online 状态
